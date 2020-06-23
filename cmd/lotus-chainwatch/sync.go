@@ -58,6 +58,8 @@ type minerKey struct {
 type minerInfo struct {
 	state miner.State
 	info  miner.MinerInfo
+	// TODO use []miner.SectorOnChainInfo
+	sectors []*api.ChainSectorInfo
 
 	power big.Int
 	ssize uint64
@@ -289,6 +291,14 @@ func syncHead(ctx context.Context, api api.FullNode, st *storage, ts *types.TipS
 			info.psize = sszs.Pset
 			info.ssize = sszs.Sset
 
+			// Information for all proven and not-yet-expired sectors.
+			csi, err := api.StateMinerSectors(ctx, k.addr, nil, true, types.EmptyTSK)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			info.sectors = csi
+
 			astb, err := api.ChainReadObj(ctx, k.act.Head)
 			if err != nil {
 				log.Error(err)
@@ -331,6 +341,13 @@ func syncHead(ctx context.Context, api api.FullNode, st *storage, ts *types.TipS
 		log.Info("Storing miners")
 
 		if err := st.storeMiners(miners); err != nil {
+			log.Error(err)
+			return
+		}
+
+		log.Info("Storing miner sectors")
+
+		if err := st.storeSectors(miners); err != nil {
 			log.Error(err)
 			return
 		}

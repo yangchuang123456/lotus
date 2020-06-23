@@ -252,6 +252,24 @@ create table if not exists receipts
 
 create index if not exists receipts_msg_state_index
 	on receipts (msg, state);
+	
+create table if not exists miner_sectors
+(
+	stateroot text not null,
+	miner text not null,
+	sectorid int not null,
+	activation int not null,
+	dealweight bigint not null,
+	verifieddealweight bigint not null,
+	expiration int not null,
+	sealcid text not null,
+	sealrandepoch int not null,
+	constraint miner_sectors_pk
+		primary key (stateroot, miner, sectorid)
+);
+
+create index if not exists miner_sectors_state_index
+	on miner_sectors (stateroot, miner, sectorid);
 /*
 create table if not exists miner_heads
 (
@@ -454,6 +472,55 @@ func (st *storage) storeActors(actors map[address.Address]map[types.Actor]actorI
 	}
 
 	return nil
+}
+
+func (st *storage) storeSectors(miners map[minerKey]*minerInfo) error {
+	tx, err := st.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(`
+
+			create temp table ms (like miner_sectors excluding constraints) on commit drop;
+
+
+			`); err != nil {
+		return xerrors.Errorf("prep temp: %w", err)
+	}
+
+	stmt, err := tx.Prepare(`
+copy ms (stateroot, miner, sectorid, activation, dealweight, verifieddealweight, expiration, sealcid, sealrandepoch) from STDIN
+`)
+	if err != nil {
+		return err
+	}
+
+	for mkey, minfo := range miners {
+		stateroot := mkey.stateroot
+		maddr := mkey.addr
+		log.Infow("storing miner sectors", "miner", maddr.String(), "sectorcount", len(minfo.sectors))
+		for _, sector := range minfo.sectors {
+			if _, err := stmt.Exec(
+				stateroot.String(),
+				maddr.String(),
+				sector.ID.String(),
+				sector.Info.ActivationEpoch.String(),
+				sector.Info.DealWeight.String(),
+				sector.Info.VerifiedDealWeight.String(),
+				sector.Info.Info.Expiration.String(),
+				sector.Info.Info.SealedCID.String(),
+				sector.Info.Info.SealRandEpoch.String(),
+			); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := tx.Exec(`insert into miner_sectors select * from ms on conflict do nothing `); err != nil {
+		return xerrors.Errorf("actor put: %w", err)
+	}
+
+	return tx.Commit()
 }
 
 func (st *storage) storeMiners(miners map[minerKey]*minerInfo) error {
