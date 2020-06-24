@@ -11,7 +11,7 @@ import (
 
 func GetXDebugLog(moduleName string) *zap.Logger {
 	if os.Getenv("XLotusLogOn") != "" {
-		l, err := LogToWorkDir(CurExecDir(), moduleName, zap.DebugLevel).Build()
+		l, err := LogToWorkDir(CurExecDir(), moduleName, zap.DebugLevel, true).Build()
 		if err != nil {
 			panic(err)
 		}
@@ -25,7 +25,7 @@ func GetXDebugLog(moduleName string) *zap.Logger {
 	return l
 }
 
-func LogToWorkDir(workDir, moduleName string, level zapcore.Level) zap.Config {
+func LogToWorkDir(workDir, moduleName string, level zapcore.Level, delOld bool) zap.Config {
 	logP := filepath.Join(workDir, "logs")
 	if !FileExist(logP) {
 		if err := os.MkdirAll(logP, 0755); err != nil {
@@ -35,6 +35,10 @@ func LogToWorkDir(workDir, moduleName string, level zapcore.Level) zap.Config {
 
 	outP := filepath.Join(logP, moduleName + "-out.log")
 	errP := filepath.Join(logP, moduleName + "-err.log")
+	if delOld {
+		_ = os.Remove(outP)
+		_ = os.Remove(errP)
+	}
 	if runtime.GOOS == "windows" {
 		// 解决windows不支持sink
 		_ = zap.RegisterSink("winfile", newWinFileSink)
