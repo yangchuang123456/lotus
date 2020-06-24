@@ -52,7 +52,7 @@ func RunHello(mctx helpers.MetricsCtx, lc fx.Lifecycle, h host.Host, svc *hello.
 }
 
 func RunPeerMgr(mctx helpers.MetricsCtx, lc fx.Lifecycle, pmgr *peermgr.PeerMgr) {
-	dp2plog.L.Info("RunPeerMgr")
+	dp2plog.L.Debug("RunPeerMgr")
 	go pmgr.Run(helpers.LifecycleCtx(mctx, lc))
 }
 

@@ -67,9 +67,9 @@ func genLibp2pKey() (crypto.PrivKey, error) {
 // Misc options
 
 func ConnectionManager(low, high uint, grace time.Duration, protected []string) func() (opts Libp2pOpts, err error) {
-	dp2plog.L.Info("prepare libp2p connection manager", zap.Strings("protected", protected))
+	dp2plog.L.Debug("prepare libp2p connection manager", zap.Strings("protected", protected))
 	return func() (Libp2pOpts, error) {
-		dp2plog.L.Info("init libp2p connection manager")
+		dp2plog.L.Debug("init libp2p connection manager")
 		cm := connmgr.NewConnManager(int(low), int(high), grace)
 		for _, p := range protected {
 			pid, err := peer.IDFromString(p)
