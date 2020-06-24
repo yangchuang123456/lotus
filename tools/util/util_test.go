@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"path/filepath"
 	"testing"
 )
 
@@ -49,4 +50,9 @@ func TestRandANum(t *testing.T) {
 	fmt.Println(x)
 	assert.True(t, x < 8)
 	assert.True(t, x >= 0)
+}
+
+func TestCurExecPath1(t *testing.T) {
+	xPath := "/home/ipfsmain/softwares/lotus"
+	fmt.Println(filepath.Dir(xPath))
 }

@@ -11,7 +11,7 @@ import (
 
 func GetXDebugLog(moduleName string) *zap.Logger {
 	if os.Getenv("XLotusLogOn") != "" {
-		l, err := LogToWorkDir(CurExecPath(), moduleName, zap.DebugLevel).Build()
+		l, err := LogToWorkDir(CurExecDir(), moduleName, zap.DebugLevel).Build()
 		if err != nil {
 			panic(err)
 		}
@@ -28,7 +28,9 @@ func GetXDebugLog(moduleName string) *zap.Logger {
 func LogToWorkDir(workDir, moduleName string, level zapcore.Level) zap.Config {
 	logP := filepath.Join(workDir, "logs")
 	if !FileExist(logP) {
-		_ = os.MkdirAll(logP, 0755)
+		if err := os.MkdirAll(logP, 0755); err != nil {
+			panic(err)
+		}
 	}
 
 	outP := filepath.Join(logP, moduleName + "-out.log")

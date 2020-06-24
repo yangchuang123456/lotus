@@ -33,7 +33,7 @@ func FileExist(filePath string) bool {
 	return true
 }
 
-// 获取当前执行路径
+// 获取当前执行路径，包含执行文件
 func CurExecPath() string {
 	file, _ := exec.LookPath(os.Args[0])
 
@@ -43,6 +43,11 @@ func CurExecPath() string {
 	//rst := filepath.Dir(path)
 
 	return path
+}
+
+// 获取当前执行目录
+func CurExecDir() string {
+	return filepath.Dir(CurExecPath())
 }
 
 func RandANum(max int) int {
