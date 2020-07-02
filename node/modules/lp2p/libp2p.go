@@ -21,7 +21,10 @@ import (
 
 var log = logging.Logger("p2pnode")
 
-const kstorePrivkey = "libp2p-host"
+const (
+	KLibp2pHost  = "libp2p-host"
+	KTLibp2pHost = KLibp2pHost
+)
 
 type Libp2pOpts struct {
 	fx.Out
@@ -30,7 +33,7 @@ type Libp2pOpts struct {
 }
 
 func PrivKey(ks types.KeyStore) (crypto.PrivKey, error) {
-	k, err := ks.Get(kstorePrivkey)
+	k, err := ks.Get(KLibp2pHost)
 	if err == nil {
 		return crypto.UnmarshalPrivateKey(k.PrivateKey)
 	}
@@ -46,8 +49,8 @@ func PrivKey(ks types.KeyStore) (crypto.PrivKey, error) {
 		return nil, err
 	}
 
-	if err := ks.Put(kstorePrivkey, types.KeyInfo{
-		Type:       kstorePrivkey,
+	if err := ks.Put(KLibp2pHost, types.KeyInfo{
+		Type:       KTLibp2pHost,
 		PrivateKey: kbytes,
 	}); err != nil {
 		return nil, err
