@@ -35,6 +35,8 @@ func TestPoissonFunction(t *testing.T) {
 			lam = lam.Lsh(lam, precision-test.lambdaShift)
 			p, icdf := newPoiss(lam)
 
+			fmt.Println("the icdf is:\r\n", icdf)
+
 			b.WriteString(icdf.String())
 			b.WriteRune('\n')
 
@@ -129,7 +131,7 @@ func BenchmarkWinCounts(b *testing.B) {
 }
 
 func TestWinCounts(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	totalPower := NewInt(100)
 	power := NewInt(30)
 
@@ -142,4 +144,82 @@ func TestWinCounts(t *testing.T) {
 		j := ep.ComputeWinCount(power, totalPower)
 		fmt.Fprintf(f, "%d\n", j)
 	}
+}
+
+type proportion struct {
+	PowerProportion *big.Rat
+	WinProportion   float64
+	WinCount        uint64
+}
+
+func calcElection(t *testing.T, power, totalPower BigInt) proportion {
+	fmt.Println("the power and totalPower is:", power, totalPower)
+	ep := &ElectionProof{VRFProof: nil}
+	count := 0
+	winCount := uint64(0)
+	//calcNumber := uint64(1000000)
+	calcNumber := uint64(10000)
+	for i := uint64(0); i < calcNumber; i++ {
+		i := i + calcNumber
+		ep.VRFProof = []byte{byte(i), byte(i >> 8), byte(i >> 16), byte(i >> 24), byte(i >> 32)}
+		j := ep.ComputeWinCount(power, totalPower)
+		if j >= 1 {
+			//fmt.Println("be elected, the winCount is:",j)
+			count++
+		}
+		winCount += uint64(j)
+	}
+	winCount /= calcNumber
+	fmt.Println("the count is:", count)
+	tmp := big.NewRat(1, 1)
+	powerProportion := tmp.SetFrac(power.Int, totalPower.Int)
+	//fmt.Println("the win proportion is", powerProportion, float64(count)/float64(calcNumber))
+	fmt.Println("")
+	return proportion{powerProportion, float64(count) / float64(calcNumber), winCount}
+}
+
+func Test_WinCounts(t *testing.T) {
+	totalPower := NewInt(1000_000_00)
+	power := NewInt(1)
+
+	/*	for ; ; power = BigMul(power, NewInt(10)) {
+		calcElection(t,power,totalPower)
+		if power.Equals(totalPower) {
+			break
+		}
+	}*/
+
+	power = NewInt(1)
+	totalPower = NewInt(500)
+
+	proportions := make([]proportion, 0)
+	for ; ; power = BigAdd(power, NewInt(5)) {
+		proportion := calcElection(t, power, totalPower)
+		if BigCmp(power, NewInt(500)) == 1 {
+			break
+		}
+		proportions = append(proportions, proportion)
+	}
+
+	fmt.Println("the test result is:")
+	for _, v := range proportions {
+		f, _ := v.PowerProportion.Float64()
+		fmt.Printf("%v\r\n", f)
+		//fmt.Printf("%v,%v\r\n", f, v.WinProportion)
+		//	fmt.Printf("%v,%v,%v\r\n", f, v.WinProportion,v.WinCount)
+	}
+
+	fmt.Printf("@@@@@@@@@@@@@@@@@\r\n")
+
+	for _, v := range proportions {
+		fmt.Printf("%v\r\n", v.WinProportion)
+		//fmt.Printf("%v,%v\r\n", f, v.WinProportion)
+		//	fmt.Printf("%v,%v,%v\r\n", f, v.WinProportion,v.WinCount)
+	}
+
+/*	for _, v := range proportions {
+		fmt.Printf("%v\r\n", v.WinProportion)
+		//fmt.Printf("%v,%v\r\n", f, v.WinProportion)
+		//	fmt.Printf("%v,%v,%v\r\n", f, v.WinProportion,v.WinCount)
+	}*/
 }
