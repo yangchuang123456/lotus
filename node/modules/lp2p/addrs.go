@@ -2,6 +2,8 @@ package lp2p
 
 import (
 	"fmt"
+	"github.com/filecoin-project/lotus/tools/dlog/dp2plog"
+	"go.uber.org/zap"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -25,6 +27,7 @@ func AddrFilters(filters []string) func() (opts Libp2pOpts, err error) {
 }
 
 func makeAddrsFactory(announce []string, noAnnounce []string) (p2pbhost.AddrsFactory, error) {
+	dp2plog.L.Debug("makeAddrsFactory", zap.Strings("announce", announce), zap.Strings("noAnnounce", noAnnounce))
 	var annAddrs []ma.Multiaddr
 	for _, addr := range announce {
 		maddr, err := ma.NewMultiaddr(addr)
@@ -82,6 +85,7 @@ func AddrsFactory(announce []string, noAnnounce []string) func() (opts Libp2pOpt
 }
 
 func listenAddresses(addresses []string) ([]ma.Multiaddr, error) {
+	dp2plog.L.Debug("listenAddresses", zap.Strings("addr", addresses))
 	var listen []ma.Multiaddr
 	for _, addr := range addresses {
 		maddr, err := ma.NewMultiaddr(addr)
@@ -89,6 +93,7 @@ func listenAddresses(addresses []string) ([]ma.Multiaddr, error) {
 			return nil, fmt.Errorf("failure to parse config.Addresses.Swarm: %s", addresses)
 		}
 		listen = append(listen, maddr)
+		dp2plog.L.Debug("NewMultiaddr", zap.String("maddr", maddr.String()))
 	}
 
 	return listen, nil

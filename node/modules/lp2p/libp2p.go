@@ -2,6 +2,8 @@ package lp2p
 
 import (
 	"crypto/rand"
+	"github.com/filecoin-project/lotus/tools/dlog/dp2plog"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/filecoin-project/lotus/build"
@@ -68,7 +70,9 @@ func genLibp2pKey() (crypto.PrivKey, error) {
 // Misc options
 
 func ConnectionManager(low, high uint, grace time.Duration, protected []string) func() (opts Libp2pOpts, err error) {
+	dp2plog.L.Debug("prepare libp2p connection manager", zap.Strings("protected", protected))
 	return func() (Libp2pOpts, error) {
+		dp2plog.L.Debug("init libp2p connection manager")
 		cm := connmgr.NewConnManager(int(low), int(high), grace)
 		for _, p := range protected {
 			pid, err := peer.IDFromString(p)

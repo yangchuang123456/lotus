@@ -35,4 +35,5 @@ build/paramfetch.sh
 bin/ipget
 bin/tmp/*
 .idea
+/logs
 scratchpad

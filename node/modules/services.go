@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"github.com/filecoin-project/lotus/tools/dlog/dp2plog"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	eventbus "github.com/libp2p/go-eventbus"
@@ -51,6 +52,7 @@ func RunHello(mctx helpers.MetricsCtx, lc fx.Lifecycle, h host.Host, svc *hello.
 }
 
 func RunPeerMgr(mctx helpers.MetricsCtx, lc fx.Lifecycle, pmgr *peermgr.PeerMgr) {
+	dp2plog.L.Debug("RunPeerMgr")
 	go pmgr.Run(helpers.LifecycleCtx(mctx, lc))
 }
 
