@@ -8,5 +8,6 @@ import (
 var L *zap.Logger
 
 func init() {
-	L = util.GetXDebugLog("p2p")
+	//L = util.GetXDebugLog("p2p")
+	L = util.GetXDebugLog("sector_debug")
 }
