@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -59,4 +60,10 @@ func RandANum(max int) int {
 		return rand2.Intn(max)
 	}
 	return int(binary.BigEndian.Uint64(x) % uint64(max))
+}
+
+// 从请求中获取远端IP
+func RemoteIPFromReqAddr(remoteAddr string) string {
+	i := strings.Index(remoteAddr, ":")
+	return remoteAddr[:i]
 }

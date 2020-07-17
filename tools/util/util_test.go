@@ -43,6 +43,7 @@ import (
 
 func TestCurExecPath(t *testing.T) {
 	fmt.Println(CurExecPath())
+	fmt.Println(filepath.Base(CurExecPath()))
 }
 
 func TestRandANum(t *testing.T) {

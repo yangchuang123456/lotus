@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/filecoin-project/lotus/tools/dlog/dp2plog"
+	"go.uber.org/zap"
 	"io"
 	"strconv"
 	"strings"
@@ -173,11 +175,14 @@ func (a *ChainAPI) ChainGetParentReceipts(ctx context.Context, bcid cid.Cid) ([]
 }
 
 func (a *ChainAPI) ChainGetTipSetByHeight(ctx context.Context, h abi.ChainEpoch, tsk types.TipSetKey) (*types.TipSet, error) {
+	dp2plog.L.Info("call ChainAPI ChainGetTipSetByHeight h and tsk is:",zap.Any("h",h),zap.Any("tsk",tsk.Cids()))
 	ts, err := a.Chain.GetTipSetFromKey(tsk)
 	if err != nil {
 		return nil, xerrors.Errorf("loading tipset %s: %w", tsk, err)
 	}
-	return a.Chain.GetTipsetByHeight(ctx, h, ts, true)
+	tipSetKey,err:= a.Chain.GetTipsetByHeight(ctx, h, ts, true)
+	dp2plog.L.Info("the return tipSet key is:",zap.Any("height",tipSetKey.Height()),zap.Any("tipSetKey",tipSetKey.Key()))
+	return tipSetKey,err
 }
 
 func (a *ChainAPI) ChainReadObj(ctx context.Context, obj cid.Cid) ([]byte, error) {

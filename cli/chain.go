@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/filecoin-project/lotus/tools/dlog/dp2plog"
+	"go.uber.org/zap"
 	"os"
 	"os/exec"
 	"path"
@@ -383,6 +385,10 @@ var chainListCmd = &cli.Command{
 		if err != nil {
 			return err
 		}
+		dp2plog.L.Info("the head height is:",zap.Any("height",head.Height()))
+		dp2plog.L.Info("the head cids are:",zap.Any("cids",head.Cids()))
+		dp2plog.L.Info("the head block[0] cid is:",zap.Any("block0-cid",head.Blocks()[0].Cid()))
+		dp2plog.L.Info("")
 
 		count := cctx.Int("count")
 		if count < 1 {
@@ -401,6 +407,11 @@ var chainListCmd = &cli.Command{
 			if err != nil {
 				return err
 			}
+
+			dp2plog.L.Info("the head height is:",zap.Any("height",head.Height()))
+			dp2plog.L.Info("the head cids are:",zap.Any("cids",head.Cids()))
+			dp2plog.L.Info("the head block[0] cid is:",zap.Any("block0-cid",head.Blocks()[0].Cid()))
+			dp2plog.L.Info("")
 
 			tss = append(tss, head)
 		}

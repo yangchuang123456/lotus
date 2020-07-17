@@ -3,6 +3,7 @@ package stmgr
 import (
 	"context"
 	"fmt"
+	"github.com/filecoin-project/specs-actors/tools/dlog/actorlog"
 	"sync"
 
 	"github.com/filecoin-project/go-address"
@@ -197,7 +198,7 @@ func (sm *StateManager) ApplyBlocks(ctx context.Context, pstate cid.Cid, bms []B
 		if err != nil {
 			return cid.Undef, cid.Undef, xerrors.Errorf("failed to get system actor: %w", err)
 		}
-
+		actorlog.L.Info("StateManager applyBlocks call  AwardBlockReward")
 		rwMsg := &types.Message{
 			From:     builtin.SystemActorAddr,
 			To:       builtin.RewardActorAddr,
@@ -240,6 +241,7 @@ func (sm *StateManager) ApplyBlocks(ctx context.Context, pstate cid.Cid, bms []B
 		Method:   builtin.MethodsCron.EpochTick,
 		Params:   nil,
 	}
+	actorlog.L.Info("StateManager applyBlocks call  EpochTick")
 	ret, err := vmi.ApplyImplicitMessage(ctx, cronMsg)
 	if err != nil {
 		return cid.Undef, cid.Undef, err

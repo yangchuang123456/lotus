@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/filecoin-project/specs-actors/tools/dlog/actorlog"
 	"os"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -90,6 +91,7 @@ func main() {
 	app.Setup()
 	app.Metadata["repoType"] = repo.StorageMiner
 
+	actorlog.L.Info("test actor log input")
 	if err := app.Run(os.Args); err != nil {
 		log.Warnf("%+v", err)
 		os.Exit(1)
