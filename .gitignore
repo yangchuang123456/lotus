@@ -37,3 +37,7 @@ bin/tmp/*
 .idea
 /logs
 scratchpad
+
+lotus-token
+storage-token
+token
