@@ -2,6 +2,7 @@ package full
 
 import (
 	"context"
+	"github.com/filecoin-project/specs-actors/actors/abi/big"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/api"
@@ -26,7 +27,7 @@ type MsigAPI struct {
 	MpoolAPI  MpoolAPI
 }
 
-func (a *MsigAPI) MsigCreate(ctx context.Context, req uint64, addrs []address.Address, val types.BigInt, src address.Address, gp types.BigInt) (cid.Cid, error) {
+func (a *MsigAPI) MsigCreate(ctx context.Context, req uint64, addrs []address.Address, duration abi.ChainEpoch, val types.BigInt, src address.Address, gp types.BigInt) (cid.Cid, error) {
 
 	lenAddrs := uint64(len(addrs))
 
@@ -50,6 +51,7 @@ func (a *MsigAPI) MsigCreate(ctx context.Context, req uint64, addrs []address.Ad
 	msigParams := &samsig.ConstructorParams{
 		Signers:               addrs,
 		NumApprovalsThreshold: req,
+		UnlockDuration:        duration,
 	}
 
 	enc, actErr := actors.SerializeParams(msigParams)
@@ -75,7 +77,7 @@ func (a *MsigAPI) MsigCreate(ctx context.Context, req uint64, addrs []address.Ad
 		Method:   builtin.MethodsInit.Exec,
 		Params:   enc,
 		GasPrice: gp,
-		GasLimit: 1000000,
+		GasLimit: 100_000_000,
 		Value:    val,
 	}
 
@@ -122,7 +124,7 @@ func (a *MsigAPI) MsigPropose(ctx context.Context, msig address.Address, to addr
 		Value:    types.NewInt(0),
 		Method:   builtin.MethodsMultisig.Propose,
 		Params:   enc,
-		GasLimit: 100000,
+		GasLimit: 100_000_000,
 		GasPrice: types.NewInt(1),
 	}
 
@@ -134,12 +136,39 @@ func (a *MsigAPI) MsigPropose(ctx context.Context, msig address.Address, to addr
 	return smsg.Cid(), nil
 }
 
+func (a *MsigAPI) MsigSwapPropose(ctx context.Context, msig address.Address, src address.Address, oldAdd address.Address, newAdd address.Address) (cid.Cid, error) {
+	enc, actErr := serializeSwapParams(oldAdd, newAdd)
+	if actErr != nil {
+		return cid.Undef, actErr
+	}
+
+	return a.MsigPropose(ctx, msig, msig, big.Zero(), src, uint64(builtin.MethodsMultisig.SwapSigner), enc)
+}
+
+func (a *MsigAPI) MsigSwapApprove(ctx context.Context, msig address.Address, src address.Address, txID uint64, proposer address.Address, oldAdd address.Address, newAdd address.Address) (cid.Cid, error) {
+	enc, actErr := serializeSwapParams(oldAdd, newAdd)
+	if actErr != nil {
+		return cid.Undef, actErr
+	}
+
+	return a.MsigApprove(ctx, msig, txID, proposer, msig, big.Zero(), src, uint64(builtin.MethodsMultisig.SwapSigner), enc)
+}
+
+func (a *MsigAPI) MsigSwapCancel(ctx context.Context, msig address.Address, src address.Address, txID uint64, oldAdd address.Address, newAdd address.Address) (cid.Cid, error) {
+	enc, actErr := serializeSwapParams(oldAdd, newAdd)
+	if actErr != nil {
+		return cid.Undef, actErr
+	}
+
+	return a.MsigCancel(ctx, msig, txID, msig, big.Zero(), src, uint64(builtin.MethodsMultisig.SwapSigner), enc)
+}
+
 func (a *MsigAPI) MsigApprove(ctx context.Context, msig address.Address, txID uint64, proposer address.Address, to address.Address, amt types.BigInt, src address.Address, method uint64, params []byte) (cid.Cid, error) {
 	return a.msigApproveOrCancel(ctx, api.MsigApprove, msig, txID, proposer, to, amt, src, method, params)
 }
 
-func (a *MsigAPI) MsigCancel(ctx context.Context, msig address.Address, txID uint64, proposer address.Address, to address.Address, amt types.BigInt, src address.Address, method uint64, params []byte) (cid.Cid, error) {
-	return a.msigApproveOrCancel(ctx, api.MsigCancel, msig, txID, proposer, to, amt, src, method, params)
+func (a *MsigAPI) MsigCancel(ctx context.Context, msig address.Address, txID uint64, to address.Address, amt types.BigInt, src address.Address, method uint64, params []byte) (cid.Cid, error) {
+	return a.msigApproveOrCancel(ctx, api.MsigCancel, msig, txID, src, to, amt, src, method, params)
 }
 
 func (a *MsigAPI) msigApproveOrCancel(ctx context.Context, operation api.MsigProposeResponse, msig address.Address, txID uint64, proposer address.Address, to address.Address, amt types.BigInt, src address.Address, method uint64, params []byte) (cid.Cid, error) {
@@ -211,7 +240,7 @@ func (a *MsigAPI) msigApproveOrCancel(ctx context.Context, operation api.MsigPro
 		Value:    types.NewInt(0),
 		Method:   msigResponseMethod,
 		Params:   enc,
-		GasLimit: 100000,
+		GasLimit: 100_000_000,
 		GasPrice: types.NewInt(1),
 	}
 
@@ -221,4 +250,16 @@ func (a *MsigAPI) msigApproveOrCancel(ctx context.Context, operation api.MsigPro
 	}
 
 	return smsg.Cid(), nil
+}
+
+func serializeSwapParams(old address.Address, new address.Address) ([]byte, error) {
+	enc, actErr := actors.SerializeParams(&samsig.SwapSignerParams{
+		From: old,
+		To:   new,
+	})
+	if actErr != nil {
+		return nil, actErr
+	}
+
+	return enc, nil
 }

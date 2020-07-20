@@ -108,7 +108,7 @@ const (
 
 	RegisterClientValidatorKey
 
-	// storage miner
+	// miner
 	GetParamsKey
 	HandleDealsKey
 	HandleRetrievalKey
@@ -119,6 +119,7 @@ const (
 	ExtractApiKey
 	HeadMetricsKey
 	RunPeerTaggerKey
+	JournalKey
 
 	SetApiEndpointKey
 
@@ -150,6 +151,7 @@ func defaults() []Option {
 		Override(new(record.Validator), modules.RecordValidator),
 		Override(new(dtypes.Bootstrapper), dtypes.Bootstrapper(false)),
 		Override(new(dtypes.ShutdownChan), make(chan struct{})),
+		Override(JournalKey, modules.SetupJournal),
 
 		// Filecoin modules
 
@@ -232,7 +234,6 @@ func Online() Option {
 			Override(new(dtypes.ChainGCBlockstore), modules.ChainGCBlockstore),
 			Override(new(dtypes.ChainExchange), modules.ChainExchange),
 			Override(new(dtypes.ChainBlockService), modules.ChainBlockservice),
-			Override(new(dtypes.ClientDAG), testing.MemoryClientDag),
 
 			// Filecoin services
 			Override(new(*chain.Syncer), modules.NewSyncer),
@@ -273,7 +274,7 @@ func Online() Option {
 			Override(new(*market.FundMgr), market.NewFundMgr),
 		),
 
-		// Storage miner
+		// miner
 		ApplyIf(func(s *Settings) bool { return s.nodeType == repo.StorageMiner },
 			Override(new(api.Common), From(new(common.CommonAPI))),
 			Override(new(sectorstorage.StorageAuth), modules.StorageAuth),
@@ -325,6 +326,8 @@ func Online() Option {
 			Override(new(dtypes.SetConsiderOfflineRetrievalDealsConfigFunc), modules.NewSetConsiderOfflineRetrievalDealsConfigFunc),
 			Override(new(dtypes.SetSealingDelayFunc), modules.NewSetSealDelayFunc),
 			Override(new(dtypes.GetSealingDelayFunc), modules.NewGetSealDelayFunc),
+			Override(new(dtypes.SetExpectedSealDurationFunc), modules.NewSetExpectedSealDurationFunc),
+			Override(new(dtypes.GetExpectedSealDurationFunc), modules.NewGetExpectedSealDurationFunc),
 		),
 	)
 }
@@ -438,9 +441,10 @@ func Repo(r repo.Repo) Option {
 			Override(new(dtypes.MetadataDS), modules.Datastore),
 			Override(new(dtypes.ChainBlockstore), modules.ChainBlockstore),
 
-			Override(new(dtypes.ClientFilestore), modules.ClientFstore),
+			Override(new(dtypes.ClientImportMgr), modules.ClientImportMgr),
+			Override(new(dtypes.ClientMultiDstore), modules.ClientMultiDatastore),
+
 			Override(new(dtypes.ClientBlockstore), modules.ClientBlockstore),
-			Override(new(dtypes.ClientDAG), modules.ClientDAG),
 
 			Override(new(ci.PrivKey), lp2p.PrivKey),
 			Override(new(ci.PubKey), ci.PrivKey.GetPublic),

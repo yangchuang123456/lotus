@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"encoding/json"
+	"github.com/filecoin-project/sector-storage/fsutil"
 	"github.com/ipfs/go-cid"
 	"golang.org/x/xerrors"
 	"net/http"
@@ -55,6 +56,8 @@ type StorageMinerAPI struct {
 	SetConsiderOfflineRetrievalDealsConfigFunc dtypes.SetConsiderOfflineRetrievalDealsConfigFunc
 	SetSealingDelayFunc                        dtypes.SetSealingDelayFunc
 	GetSealingDelayFunc                        dtypes.GetSealingDelayFunc
+	GetExpectedSealDurationFunc                dtypes.GetExpectedSealDurationFunc
+	SetExpectedSealDurationFunc                dtypes.SetExpectedSealDurationFunc
 }
 
 func (sm *StorageMinerAPI) ServeRemote(w http.ResponseWriter, r *http.Request) {
@@ -175,7 +178,7 @@ func (sm *StorageMinerAPI) SectorsRefs(context.Context) (map[string][]api.Sealed
 	return out, nil
 }
 
-func (sm *StorageMinerAPI) StorageStat(ctx context.Context, id stores.ID) (stores.FsStat, error) {
+func (sm *StorageMinerAPI) StorageStat(ctx context.Context, id stores.ID) (fsutil.FsStat, error) {
 	return sm.StorageMgr.FsStat(ctx, id)
 }
 
@@ -189,6 +192,14 @@ func (sm *StorageMinerAPI) SectorSetSealDelay(ctx context.Context, delay time.Du
 
 func (sm *StorageMinerAPI) SectorGetSealDelay(ctx context.Context) (time.Duration, error) {
 	return sm.GetSealingDelayFunc()
+}
+
+func (sm *StorageMinerAPI) SectorSetExpectedSealDuration(ctx context.Context, delay time.Duration) error {
+	return sm.SetExpectedSealDurationFunc(delay)
+}
+
+func (sm *StorageMinerAPI) SectorGetExpectedSealDuration(ctx context.Context) (time.Duration, error) {
+	return sm.GetExpectedSealDurationFunc()
 }
 
 func (sm *StorageMinerAPI) SectorsUpdate(ctx context.Context, id abi.SectorNumber, state api.SectorState) error {
@@ -279,6 +290,14 @@ func (sm *StorageMinerAPI) DealsConsiderOfflineRetrievalDeals(ctx context.Contex
 
 func (sm *StorageMinerAPI) DealsSetConsiderOfflineRetrievalDeals(ctx context.Context, b bool) error {
 	return sm.SetConsiderOfflineRetrievalDealsConfigFunc(b)
+}
+
+func (sm *StorageMinerAPI) DealsGetExpectedSealDurationFunc(ctx context.Context) (time.Duration, error) {
+	return sm.GetExpectedSealDurationFunc()
+}
+
+func (sm *StorageMinerAPI) DealsSetExpectedSealDurationFunc(ctx context.Context, d time.Duration) error {
+	return sm.SetExpectedSealDurationFunc(d)
 }
 
 func (sm *StorageMinerAPI) DealsImportData(ctx context.Context, deal cid.Cid, fname string) error {

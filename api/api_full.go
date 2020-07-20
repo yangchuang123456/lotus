@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-filestore"
 	"github.com/libp2p/go-libp2p-core/peer"
 
 	"github.com/filecoin-project/go-address"
@@ -26,8 +25,6 @@ import (
 // FullNode API is a low-level interface to the Filecoin network full node
 type FullNode interface {
 	Common
-
-	// TODO: TipSetKeys
 
 	// MethodGroup: Chain
 	// The Chain method group contains methods for interacting with the
@@ -55,7 +52,7 @@ type FullNode interface {
 	// the specified block.
 	ChainGetParentReceipts(ctx context.Context, blockCid cid.Cid) ([]*types.MessageReceipt, error)
 
-	// ChainGetParentReceipts returns messages stored in parent tipset of the
+	// ChainGetParentMessages returns messages stored in parent tipset of the
 	// specified block.
 	ChainGetParentMessages(ctx context.Context, blockCid cid.Cid) ([]Message, error)
 
@@ -163,7 +160,7 @@ type FullNode interface {
 	WalletNew(context.Context, crypto.SigType) (address.Address, error)
 	// WalletHas indicates whether the given address is in the wallet.
 	WalletHas(context.Context, address.Address) (bool, error)
-	// WalletHas indicates whether the given address is in the wallet.
+	// WalletList lists all the addresses in the wallet.
 	WalletList(context.Context) ([]address.Address, error)
 	// WalletBalance returns the balance of the given address at the current head of the chain.
 	WalletBalance(context.Context, address.Address) (types.BigInt, error)
@@ -192,7 +189,9 @@ type FullNode interface {
 	// retrieval markets as a client
 
 	// ClientImport imports file under the specified path into filestore.
-	ClientImport(ctx context.Context, ref FileRef) (cid.Cid, error)
+	ClientImport(ctx context.Context, ref FileRef) (*ImportRes, error)
+	// ClientRemoveImport removes file import
+	ClientRemoveImport(ctx context.Context, importID int) error
 	// ClientStartDeal proposes a deal with a miner.
 	ClientStartDeal(ctx context.Context, params *StartDealParams) (*cid.Cid, error)
 	// ClientGetDealInfo returns the latest information about a given deal.
@@ -202,9 +201,9 @@ type FullNode interface {
 	// ClientHasLocal indicates whether a certain CID is locally stored.
 	ClientHasLocal(ctx context.Context, root cid.Cid) (bool, error)
 	// ClientFindData identifies peers that have a certain file, and returns QueryOffers (one per peer).
-	ClientFindData(ctx context.Context, root cid.Cid) ([]QueryOffer, error)
+	ClientFindData(ctx context.Context, root cid.Cid, piece *cid.Cid) ([]QueryOffer, error)
 	// ClientMinerQueryOffer returns a QueryOffer for the specific miner and file.
-	ClientMinerQueryOffer(ctx context.Context, root cid.Cid, miner address.Address) (QueryOffer, error)
+	ClientMinerQueryOffer(ctx context.Context, miner address.Address, root cid.Cid, piece *cid.Cid) (QueryOffer, error)
 	// ClientRetrieve initiates the retrieval of a file, as specified in the order.
 	ClientRetrieve(ctx context.Context, order RetrievalOrder, ref *FileRef) error
 	// ClientQueryAsk returns a signed StorageAsk from the specified miner.
@@ -244,8 +243,8 @@ type FullNode interface {
 	// If the filterOut boolean is set to true, any sectors in the filter are excluded.
 	// If false, only those sectors in the filter are included.
 	StateMinerSectors(context.Context, address.Address, *abi.BitField, bool, types.TipSetKey) ([]*ChainSectorInfo, error)
-	// StateMinerProvingSet returns info about those sectors that a given miner is actively proving.
-	StateMinerProvingSet(context.Context, address.Address, types.TipSetKey) ([]*ChainSectorInfo, error)
+	// StateMinerActiveSectors returns info about sectors that a given miner is actively proving.
+	StateMinerActiveSectors(context.Context, address.Address, types.TipSetKey) ([]*ChainSectorInfo, error)
 	// StateMinerProvingDeadline calculates the deadline at some epoch for a proving period
 	// and returns the deadline-related calculations.
 	StateMinerProvingDeadline(context.Context, address.Address, types.TipSetKey) (*miner.DeadlineInfo, error)
@@ -254,7 +253,9 @@ type FullNode interface {
 	// StateMinerInfo returns info about the indicated miner
 	StateMinerInfo(context.Context, address.Address, types.TipSetKey) (MinerInfo, error)
 	// StateMinerDeadlines returns all the proving deadlines for the given miner
-	StateMinerDeadlines(context.Context, address.Address, types.TipSetKey) (*miner.Deadlines, error)
+	StateMinerDeadlines(context.Context, address.Address, types.TipSetKey) ([]*miner.Deadline, error)
+	// StateMinerPartitions loads miner partitions for the specified miner/deadline
+	StateMinerPartitions(context.Context, address.Address, uint64, types.TipSetKey) ([]*miner.Partition, error)
 	// StateMinerFaults returns a bitfield indicating the faulty sectors of the given miner
 	StateMinerFaults(context.Context, address.Address, types.TipSetKey) (*abi.BitField, error)
 	// StateAllMinerFaults returns all non-expired Faults that occur within lookback epochs of the given tipset
@@ -268,7 +269,13 @@ type FullNode interface {
 	// StateSectorPreCommitInfo returns the PreCommit info for the specified miner's sector
 	StateSectorPreCommitInfo(context.Context, address.Address, abi.SectorNumber, types.TipSetKey) (miner.SectorPreCommitOnChainInfo, error)
 	// StateSectorGetInfo returns the on-chain info for the specified miner's sector
+	// NOTE: returned info.Expiration may not be accurate in some cases, use StateSectorExpiration to get accurate
+	// expiration epoch
 	StateSectorGetInfo(context.Context, address.Address, abi.SectorNumber, types.TipSetKey) (*miner.SectorOnChainInfo, error)
+	// StateSectorExpiration returns epoch at which given sector will expire
+	StateSectorExpiration(context.Context, address.Address, abi.SectorNumber, types.TipSetKey) (*SectorExpiration, error)
+	// StateSectorPartition finds deadline/partition with the specified sector
+	StateSectorPartition(ctx context.Context, maddr address.Address, sectorNumber abi.SectorNumber, tok types.TipSetKey) (*SectorLocation, error)
 	StatePledgeCollateral(context.Context, types.TipSetKey) (types.BigInt, error)
 	// StateSearchMsg searches for a message in the chain, and returns its receipt and the tipset where it was executed
 	StateSearchMsg(context.Context, cid.Cid) (*MsgLookup, error)
@@ -312,10 +319,10 @@ type FullNode interface {
 
 	// MsigGetAvailableBalance returns the portion of a multisig's balance that can be withdrawn or spent
 	MsigGetAvailableBalance(context.Context, address.Address, types.TipSetKey) (types.BigInt, error)
-	// MsigGetAvailableBalance creates a multisig wallet
-	// It takes the following params: <required number of senders>, <approving addresses>, <initial balance>,
-	// <sender address of the create msg>, <gas price>
-	MsigCreate(context.Context, uint64, []address.Address, types.BigInt, address.Address, types.BigInt) (cid.Cid, error)
+	// MsigCreate creates a multisig wallet
+	// It takes the following params: <required number of senders>, <approving addresses>, <unlock duration>
+	//<initial balance>, <sender address of the create msg>, <gas price>
+	MsigCreate(context.Context, uint64, []address.Address, abi.ChainEpoch, types.BigInt, address.Address, types.BigInt) (cid.Cid, error)
 	// MsigPropose proposes a multisig message
 	// It takes the following params: <multisig address>, <recipient address>, <value to transfer>,
 	// <sender address of the propose msg>, <method to call in the proposed message>, <params to include in the proposed message>
@@ -325,10 +332,21 @@ type FullNode interface {
 	// <sender address of the approve msg>, <method to call in the proposed message>, <params to include in the proposed message>
 	MsigApprove(context.Context, address.Address, uint64, address.Address, address.Address, types.BigInt, address.Address, uint64, []byte) (cid.Cid, error)
 	// MsigCancel cancels a previously-proposed multisig message
-	// It takes the following params: <multisig address>, <proposed message ID>, <proposer address>, <recipient address>, <value to transfer>,
+	// It takes the following params: <multisig address>, <proposed message ID>, <recipient address>, <value to transfer>,
 	// <sender address of the cancel msg>, <method to call in the proposed message>, <params to include in the proposed message>
-	// TODO: You can't cancel someone else's proposed message, so "src" and "proposer" here are redundant
-	MsigCancel(context.Context, address.Address, uint64, address.Address, address.Address, types.BigInt, address.Address, uint64, []byte) (cid.Cid, error)
+	MsigCancel(context.Context, address.Address, uint64, address.Address, types.BigInt, address.Address, uint64, []byte) (cid.Cid, error)
+	// MsigSwapPropose proposes swapping 2 signers in the multisig
+	// It takes the following params: <multisig address>, <sender address of the propose msg>,
+	// <old signer> <new signer>
+	MsigSwapPropose(context.Context, address.Address, address.Address, address.Address, address.Address) (cid.Cid, error)
+	// MsigSwapApprove approves a previously proposed SwapSigner
+	// It takes the following params: <multisig address>, <sender address of the approve msg>, <proposed message ID>,
+	// <proposer address>, <old signer> <new signer>
+	MsigSwapApprove(context.Context, address.Address, address.Address, uint64, address.Address, address.Address, address.Address) (cid.Cid, error)
+	// MsigSwapCancel cancels a previously proposed SwapSigner message
+	// It takes the following params: <multisig address>, <sender address of the cancel msg>, <proposed message ID>,
+	// <old signer> <new signer>
+	MsigSwapCancel(context.Context, address.Address, address.Address, uint64, address.Address, address.Address) (cid.Cid, error)
 
 	MarketEnsureAvailable(context.Context, address.Address, address.Address, types.BigInt) (cid.Cid, error)
 	// MarketFreeBalance
@@ -356,15 +374,35 @@ type FileRef struct {
 }
 
 type MinerSectors struct {
-	Sset uint64
-	Pset uint64
+	Sectors uint64
+	Active    uint64
+}
+
+type SectorExpiration struct {
+	OnTime abi.ChainEpoch
+
+	// non-zero if sector is faulty, epoch at which it will be permanently
+	// removed if it doesn't recover
+	Early abi.ChainEpoch
+}
+
+type SectorLocation struct {
+	Deadline  uint64
+	Partition uint64
+}
+
+type ImportRes struct {
+	Root     cid.Cid
+	ImportID int
 }
 
 type Import struct {
-	Status   filestore.Status
-	Key      cid.Cid
+	Key int
+	Err string
+
+	Root     *cid.Cid
+	Source   string
 	FilePath string
-	Size     uint64
 }
 
 type DealInfo struct {
@@ -385,8 +423,8 @@ type DealInfo struct {
 type MsgLookup struct {
 	Receipt   types.MessageReceipt
 	ReturnDec interface{}
-	// TODO: This should probably a tipsetkey?
-	TipSet *types.TipSet
+	TipSet    types.TipSetKey
+	Height    abi.ChainEpoch
 }
 
 type BlockMessages struct {
@@ -452,7 +490,8 @@ type MinerPower struct {
 type QueryOffer struct {
 	Err string
 
-	Root cid.Cid
+	Root  cid.Cid
+	Piece *cid.Cid
 
 	Size                    uint64
 	MinPrice                types.BigInt
@@ -465,6 +504,7 @@ type QueryOffer struct {
 func (o *QueryOffer) Order(client address.Address) RetrievalOrder {
 	return RetrievalOrder{
 		Root:                    o.Root,
+		Piece:                   o.Piece,
 		Size:                    o.Size,
 		Total:                   o.MinPrice,
 		PaymentInterval:         o.PaymentInterval,
@@ -488,8 +528,9 @@ type MarketDeal struct {
 
 type RetrievalOrder struct {
 	// TODO: make this less unixfs specific
-	Root cid.Cid
-	Size uint64
+	Root  cid.Cid
+	Piece *cid.Cid
+	Size  uint64
 	// TODO: support offset
 	Total                   types.BigInt
 	PaymentInterval         uint64
