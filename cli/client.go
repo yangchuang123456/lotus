@@ -91,6 +91,11 @@ var clientImportCmd = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
+
+		if cctx.NArg() != 1 {
+			return xerrors.New("expected input path as the only arg")
+		}
+
 		absPath, err := filepath.Abs(cctx.Args().First())
 		if err != nil {
 			return err
@@ -135,14 +140,14 @@ var clientDropCmd = &cli.Command{
 		defer closer()
 		ctx := ReqContext(cctx)
 
-		var ids []int64
+		var ids []int
 		for i, s := range cctx.Args().Slice() {
-			id, err := strconv.ParseInt(s, 10, 64)
+			id, err := strconv.ParseInt(s, 10, 0)
 			if err != nil {
 				return xerrors.Errorf("parsing %d-th import ID: %w", i, err)
 			}
 
-			ids = append(ids, id)
+			ids = append(ids, int(id))
 		}
 
 		for _, id := range ids {
@@ -485,6 +490,8 @@ var clientFindCmd = &cli.Command{
 	},
 }
 
+const DefaultMaxRetrievePrice = 1
+
 var clientRetrieveCmd = &cli.Command{
 	Name:      "retrieve",
 	Usage:     "retrieve data from network",
@@ -501,6 +508,10 @@ var clientRetrieveCmd = &cli.Command{
 		&cli.StringFlag{
 			Name:  "miner",
 			Usage: "miner address for retrieval, if not present it'll use local discovery",
+		},
+		&cli.StringFlag{
+			Name:  "maxPrice",
+			Usage: fmt.Sprintf("maximum price the client is willing to consider (default: %d FIL)", DefaultMaxRetrievePrice),
 		},
 		&cli.StringFlag{
 			Name:  "pieceCid",
@@ -560,6 +571,11 @@ var clientRetrieveCmd = &cli.Command{
 		minerStrAddr := cctx.String("miner")
 		if minerStrAddr == "" { // Local discovery
 			offers, err := fapi.ClientFindData(ctx, file, pieceCid)
+
+			// sort by price low to high
+			sort.Slice(offers, func(i, j int) bool {
+				return offers[i].MinPrice.LessThan(offers[j].MinPrice)
+			})
 			if err != nil {
 				return err
 			}
@@ -582,6 +598,21 @@ var clientRetrieveCmd = &cli.Command{
 		}
 		if offer.Err != "" {
 			return fmt.Errorf("The received offer errored: %s", offer.Err)
+		}
+
+		maxPrice := types.FromFil(DefaultMaxRetrievePrice)
+
+		if cctx.String("maxPrice") != "" {
+			maxPriceFil, err := types.ParseFIL(cctx.String("maxPrice"))
+			if err != nil {
+				return xerrors.Errorf("parsing maxPrice: %w", err)
+			}
+
+			maxPrice = types.BigInt(maxPriceFil)
+		}
+
+		if offer.MinPrice.GreaterThan(maxPrice) {
+			return xerrors.Errorf("failed to find offer satisfying maxPrice: %s", maxPrice)
 		}
 
 		ref := &lapi.FileRef{
@@ -737,7 +768,8 @@ var clientListDeals = &cli.Command{
 				slashed = fmt.Sprintf("Y (epoch %d)", d.OnChainDealState.SlashEpoch)
 			}
 
-			fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s\n", d.LocalDeal.ProposalCid, d.LocalDeal.DealID, d.LocalDeal.Provider, storagemarket.DealStates[d.LocalDeal.State], onChain, slashed, d.LocalDeal.PieceCID, types.SizeStr(types.NewInt(d.LocalDeal.Size)), d.LocalDeal.PricePerEpoch, d.LocalDeal.Duration, d.LocalDeal.Message)
+			price := types.FIL(types.BigMul(d.LocalDeal.PricePerEpoch, types.NewInt(d.LocalDeal.Duration)))
+			fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s\n", d.LocalDeal.ProposalCid, d.LocalDeal.DealID, d.LocalDeal.Provider, storagemarket.DealStates[d.LocalDeal.State], onChain, slashed, d.LocalDeal.PieceCID, types.SizeStr(types.NewInt(d.LocalDeal.Size)), price, d.LocalDeal.Duration, d.LocalDeal.Message)
 		}
 		return w.Flush()
 	},

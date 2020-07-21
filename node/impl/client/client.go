@@ -296,7 +296,7 @@ func (a *API) ClientImport(ctx context.Context, ref api.FileRef) (*api.ImportRes
 	}, nil
 }
 
-func (a *API) ClientRemoveImport(ctx context.Context, importID int64) error {
+func (a *API) ClientRemoveImport(ctx context.Context, importID int) error {
 	return a.imgr().Remove(importID)
 }
 
@@ -409,26 +409,8 @@ func (a *API) ClientRetrieve(ctx context.Context, order api.RetrievalOrder, ref 
 				retrievalResult <- xerrors.Errorf("Retrieval Proposal Rejected: %s", state.Message)
 			case
 				rm.DealStatusDealNotFound,
-				rm.DealStatusErrored,
-				rm.DealStatusFailed:
+				rm.DealStatusErrored:
 				retrievalResult <- xerrors.Errorf("Retrieval Error: %s", state.Message)
-			case
-				rm.DealStatusAccepted,
-				rm.DealStatusAwaitingAcceptance,
-				rm.DealStatusBlocksComplete,
-				rm.DealStatusFinalizing,
-				rm.DealStatusFundsNeeded,
-				rm.DealStatusFundsNeededLastPayment,
-				rm.DealStatusNew,
-				rm.DealStatusOngoing,
-				rm.DealStatusPaymentChannelAddingFunds,
-				rm.DealStatusPaymentChannelAllocatingLane,
-				rm.DealStatusPaymentChannelCreating,
-				rm.DealStatusPaymentChannelReady,
-				rm.DealStatusVerified:
-				return
-			default:
-				retrievalResult <- xerrors.Errorf("Unhandled Retrieval Status: %+v", state.Status)
 			}
 		}
 	})

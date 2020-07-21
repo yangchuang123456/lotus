@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/filecoin-project/specs-actors/tools/dlog/actorlog"
+	"fmt"
 	"os"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -21,7 +22,10 @@ import (
 
 var log = logging.Logger("main")
 
-const FlagStorageRepo = "storagerepo"
+const FlagMinerRepo = "miner-repo"
+
+// TODO remove after deprecation period
+const FlagMinerRepoDeprecation = "storagerepo"
 
 func main() {
 	lotuslog.SetupLogLevels()
@@ -62,8 +66,8 @@ func main() {
 	}
 
 	app := &cli.App{
-		Name:                 "lotus-storage-miner",
-		Usage:                "Filecoin decentralized storage network storage miner",
+		Name:                 "lotus-miner",
+		Usage:                "Filecoin decentralized storage network miner",
 		Version:              build.UserVersion(),
 		EnableBashCompletion: true,
 		Flags: []cli.Flag{
@@ -80,9 +84,11 @@ func main() {
 				Value:   "~/.lotus", // TODO: Consider XDG_DATA_HOME
 			},
 			&cli.StringFlag{
-				Name:    FlagStorageRepo,
-				EnvVars: []string{"LOTUS_STORAGE_PATH"},
-				Value:   "~/.lotusstorage", // TODO: Consider XDG_DATA_HOME
+				Name:    FlagMinerRepo,
+				Aliases: []string{FlagMinerRepoDeprecation},
+				EnvVars: []string{"LOTUS_MINER_PATH", "LOTUS_STORAGE_PATH"},
+				Value:   "~/.lotusminer", // TODO: Consider XDG_DATA_HOME
+				Usage:   fmt.Sprintf("Specify miner repo path. flag(%s) and env(LOTUS_STORAGE_PATH) are DEPRECATION, will REMOVE SOON", FlagMinerRepoDeprecation),
 			},
 		},
 
